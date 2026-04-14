@@ -1,0 +1,207 @@
+# GACA Survey Pipeline — LLM Prompts
+# Survey comments come from GACA passenger experience & service-quality surveys.
+# They cover: service channels (WhatsApp, webchat, call center), agent interactions,
+# follow-up expectations — NOT airport/airline operations.
+#
+# Placeholders injected at runtime:
+#   {topics}     — comma-separated list of topics discovered in first pass
+#   {subtopics}  — comma-separated list of subtopics
+#   {item_plural}    — e.g. "pain points" or "moments of delight"
+#   {item_singular}  — e.g. "pain point" or "moment of delight"
+#   {sentiment_dir}  — e.g. "negative" or "positive"
+
+sentiment:
+  first_pass: |
+    **Context**
+    You process open-ended comments from GACA (Saudi Arabia's General Authority of Civil Aviation)
+    passenger experience & service-quality surveys. These comments reflect:
+    - Satisfaction with the survey itself
+    - Feedback on service channels (e.g., WhatsApp, webchat, call center)
+    - Feedback on agents/staff interactions
+    - Follow-up expectations (e.g., "when will my case be answered?")
+    Comments may be Arabic or English (sometimes mixed).
+
+    Your task: analyse the batch of inputs shaped like
+    {{"id": "<string>", "channel": "<string>", "comment": "<string>"}}
+    and induce a flat list of reusable topics (no hierarchy). Each topic must be
+    a short, Title-Case label (2–3 words).
+
+    Then for every comment assign:
+    - One or more topic names from this list (or "Out of Scope")
+    - Sentiment label (positive | neutral | negative)
+    - Up to 3 pain_points (negative aspects) and up to 3 moments_of_delight (positive aspects),
+      phrased concisely. If none exist, return [].
+
+    Topic guidelines:
+    - Describe intent (e.g., "Agent Professionalism", "Response Timeliness")
+    - Avoid duplicates and channel-specific wording unless essential
+    - Aim for 10–12 total topics
+    - Include "Out of Scope" for irrelevant or airport-operations remarks
+    - Normalise synonyms across Arabic / English ("متابعة الطلب" ≈ "Follow-up Visibility")
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+    Example input:
+    id: "web-2", channel: "website", comment: "الموقع سريع وسهل لكن تسجيل الدخول معقد."
+
+    Example output:
+    {{"comments":[{{"id":"web-2","sentiment":"neutral","topics":[{{"topic":"Website Usability","pain_points":["تسجيل الدخول معقد"],"moments_of_delight":["الموقع سريع وسهل"]}}]}}]}}
+
+  second_pass: |
+    **Context**
+    You process open-ended comments from GACA passenger experience & service-quality surveys.
+    Comments may be Arabic or English (sometimes mixed).
+
+    Each input: {{"id": "<string>", "channel": "<string>", "comment": "<string>"}}
+
+    **Your task**
+    Compare the comment against the existing topics: [{topics}].
+    If one or more clearly fit, reuse them. Otherwise create a new concise Title-Case topic name.
+    Also assign:
+    - Sentiment label (positive | neutral | negative)
+    - Up to 3 pain_points and up to 3 moments_of_delight. If none, return [].
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+    Example input:
+    id: "web-2", channel: "website", comment: "الموقع سريع وسهل لكن تسجيل الدخول معقد."
+
+    Example output:
+    {{"comments":[{{"id":"web-2","sentiment":"neutral","topics":[{{"topic":"Website Usability","pain_points":["تسجيل الدخول معقد"],"moments_of_delight":["الموقع سريع وسهل"]}}]}}]}}
+
+subtopic_mapping:
+  first_pass: |
+    You are standardising free-text {item_plural} from GACA passenger-experience surveys.
+    These {item_plural} describe {sentiment_dir} experiences related to:
+    - The surveys themselves
+    - Communication channels (WhatsApp, webchat, call center)
+    - Agent behaviour or responsiveness
+    - Follow-up or status updates
+
+    Each input: "topic":"<existing topic>", "{item_singular}":"<short extracted experience>"
+
+    Your task:
+    - Analyse the batch and induce a flat list of reusable unified subtopics.
+    - Cluster similar {item_plural} into unified subtopics and assign the most suitable subtopic.
+    - Each subtopic: concise Title-Case label (2–4 words).
+    - Normalise Arabic ↔ English equivalences.
+    - Aim for 10–20 subtopics depending on variety.
+    - Use "Other" only if truly unrelated.
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+  second_pass: |
+    You are standardising free-text {item_plural} from GACA passenger-experience surveys.
+    Each input: "topic":"<existing topic>", "{item_singular}":"<short extracted experience>"
+
+    **Your task**
+    Compare the {item_singular} against existing subtopics: [{subtopics}].
+    - If one clearly fits, reuse it.
+    - If none fit, create a new concise Title-Case subtopic (2–4 words).
+    - Prefer reuse. Keep names channel-agnostic and general.
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+  map_to_fixed: |
+    You are standardising free-text {item_plural} from GACA passenger-experience surveys.
+    Each input: "topic":"<existing topic>", "{item_singular}":"<short extracted experience>"
+
+    Categorise each {item_singular} into exactly one of the predefined subtopics: [{subtopics}].
+    Use "Other" only as an absolute last resort.
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+# Predefined subtopics list — used in map_to_fixed pass.
+# Can be loaded via loader and passed as {subtopics} placeholder.
+subtopics_list:
+  - "Service Quality & Availability"
+  - "Service Timeliness"
+  - "Service Effectiveness"
+  - "Follow-up Experience"
+  - "Communication Quality"
+  - "Communication Clarity"
+  - "Agent Responsiveness"
+  - "Agent Knowledge"
+  - "Agent Behavior"
+  - "Customer Support"
+  - "Customer Comfort"
+  - "Complaint Resolution Quality"
+  - "Response Quality"
+  - "Response Timeliness"
+  - "Process Quality"
+  - "Process Usability"
+  - "Process Timeliness"
+  - "Process Integrity"
+  - "Process Fairness"
+  - "Process Automation"
+  - "Ease of Use"
+  - "Task Speed"
+  - "Process Smoothness"
+  - "System Performance"
+  - "System Stability"
+  - "System Features"
+  - "System Improvement"
+  - "System Security"
+  - "System Integration"
+  - "System Downtime"
+  - "System Errors"
+  - "System Quality"
+  - "Interface Design"
+  - "Aesthetic Appeal"
+  - "Website Performance"
+  - "Website Quality"
+  - "Site Speed"
+  - "Search Functionality"
+  - "Complaint Submission Process"
+  - "Complaint Routing"
+  - "Complaint Categories"
+  - "Complaint Rejection"
+  - "Complaint Follow-up"
+  - "Complaint Scope"
+  - "Complaint Neglect"
+  - "Complaint Volume"
+  - "Complaint Channel Value"
+  - "Agent Authority"
+  - "Human Interaction Availability"
+  - "Expert Guidance"
+  - "Compensation Process"
+  - "Compensation Timeliness"
+  - "Compensation Adequacy"
+  - "Unjustified Fees"
+  - "Financial Loss"
+  - "Billing Issues"
+  - "Airline Accountability"
+  - "Airline Practices"
+  - "Airline Staff Behavior"
+  - "Airline Service Provision"
+  - "Operational Flexibility"
+  - "Operational Inconsistency"
+  - "Airport Operations"
+  - "Boarding Process"
+  - "Flight Safety"
+  - "Baggage Issues"
+  - "Regulatory Compliance"
+  - "Regulatory Oversight"
+  - "Regulatory Enforcement"
+  - "Regulatory Authority"
+  - "GACA Accountability"
+  - "Passenger Rights"
+  - "Rights Restoration Efforts"
+  - "Accountability Enforcement"
+  - "Data Accuracy"
+  - "Data Availability"
+  - "Data Collection Process"
+  - "Data Loss"
+  - "Source Information"
+  - "Platform Credibility"
+  - "External Information Dependency"
+  - "External Travel Issues"
+  - "External Complaint Channels"
+  - "Customs Clearance Issues"
+  - "Feedback Quality & Usefulness"
+  - "Feature Requests & Suggestions"
+  - "Service Improvement Opportunities"
+  - "Process Enhancement"
+  - "Platform Evaluation"
+  - "Initial User Experience"
+  - "User Expectations"

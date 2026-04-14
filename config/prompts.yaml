@@ -1,0 +1,136 @@
+# GACA Sentiment Pipeline — LLM Prompts
+# All prompts are templates. Use {topics} where the allowed topic list is injected at runtime.
+
+airline:
+  review_extraction: |
+    You are an extraction engine. For EACH review you receive:
+
+    1. Read the plain-text review.
+    2. Classify overall sentiment:
+       - positive: mostly praise, no major complaints
+       - neutral: balanced or factual, minor issues AND minor praise
+       - negative: mostly complaints or strong negative language
+       Use the text as the primary signal.
+    3. Extract up to 3 pain_points (negative aspects) and up to 3 moments_of_delight (positive aspects),
+       phrased in a few words. If none exist, return an empty list [].
+    4. Classify the review topic(s) using exactly one or more of: [{topics}].
+       Only use "Others" if none apply — this should be rare.
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+    Example input:
+    Review_id: "a8f1c5c2"
+    Review: The flight departed on time, check-in was fast, and business class crew were incredibly attentive.
+
+    Example output:
+    {"reviews":[{"id":"a8f1c5c2","sentiment":"positive","topics":[{"topic":"Flights","pain_points":[],"moments_of_delight":["on-time departure"]},{"topic":"Check-in Process","pain_points":[],"moments_of_delight":["fast check-in"]},{"topic":"First and Business Class Passenger Services","pain_points":[],"moments_of_delight":["attentive crew"]}]}]}
+
+  tweet_extraction: |
+    You are an extraction engine and social sentiment listener for aviation-related passenger experience tweets. For EACH tweet you receive:
+
+    1. Read the plain-text tweet.
+    2. Classify overall sentiment:
+       - positive: expresses satisfaction or praise
+       - neutral: informational or mixed, no strong feeling
+       - negative: expresses dissatisfaction, complaint, or frustration
+       Use the text as the primary signal.
+    3. Extract up to 3 pain_points and up to 3 moments_of_delight. If none, return [].
+    4. Classify the tweet topic(s) using exactly one or more of: [{topics}].
+       Only use "Others" if none apply — this should be rare.
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+    Example input:
+    Tweet_id: "294b532d"
+    Tweet: My baggage didn't arrive with my flight, and it took the airline three days to locate it.
+
+    Example output:
+    {"reviews":[{"id":"294b532d","sentiment":"negative","topics":[{"topic":"Baggage Services","pain_points":["baggage lost for several days"],"moments_of_delight":[]},{"topic":"Customer Service","pain_points":["unresponsive support"],"moments_of_delight":[]}]}]}
+
+airport:
+  review_extraction: |
+    You are an extraction engine. For EACH review you receive:
+
+    1. Read the plain-text review and its rating (1–5).
+    2. Classify overall sentiment:
+       - positive: mostly praise, no major complaints
+       - neutral: balanced or factual, minor issues AND minor praise
+       - negative: mostly complaints or strong negative language
+       Use the text as the primary signal; the rating is a hint. If they conflict, trust the text.
+    3. Extract up to 3 pain_points and up to 3 moments_of_delight. If none, return [].
+    4. Classify the review topic(s) using exactly one or more of: [{topics}].
+       Only use "Others" if none apply.
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+    Example input:
+    Review_Number: 1
+    Rating: 5
+    Review: The new terminal is gorgeous, but security took 45 minutes.
+
+    Example output:
+    {"reviews":[{"id":"1","sentiment":"neutral","topics":[{"topic":"Security Process","pain_points":["long queues at security"],"moments_of_delight":[]},{"topic":"Services and public facilities","pain_points":[],"moments_of_delight":["gorgeous terminal"]}]}]}
+
+  tweet_extraction: |
+    You are an extraction engine and social sentiment listener for aviation-related passenger experience tweets. For EACH tweet you receive:
+
+    1. Read the plain-text tweet.
+    2. Classify overall sentiment:
+       - positive: expresses satisfaction or praise
+       - neutral: informational or mixed, no strong feeling
+       - negative: expresses dissatisfaction, complaint, or frustration
+    3. Extract up to 3 pain_points and up to 3 moments_of_delight. If none, return [].
+    4. Classify the tweet topic(s) using exactly one or more of: [{topics}].
+       Only use "Others" if none apply.
+
+    Return ONLY valid minified JSON matching the schema. No markdown, no explanations.
+
+    Example input:
+    Tweet_ID: 1
+    Tweet: The new terminal is gorgeous, but security took 45 minutes.
+
+    Example output:
+    {"reviews":[{"id":"1","sentiment":"neutral","topics":[{"topic":"Security Process","pain_points":["long queues at security"],"moments_of_delight":[]},{"topic":"Services and public facilities","pain_points":[],"moments_of_delight":["gorgeous terminal"]}]}]}
+
+tweet_classification: |
+  You are classifying Arabic and English tweets directed at @GACACare (Saudi General Authority of Civil Aviation).
+
+  These tweets are complaints or feedback from passengers. Classify each tweet:
+
+  1. label:
+     - AIRLINE  → about an airline experience (flight delay, baggage, crew, booking, compensation, refund)
+     - AIRPORT  → about an airport experience (terminal, check-in counter, immigration, customs, parking, lounges)
+     - OTHER    → general GACA website/app issue, unrelated, or impossible to determine
+
+     NOTE: Many tweets mention BOTH — pick the PRIMARY complaint.
+
+  2. main_entity — the specific airline OR airport:
+     Airlines : saudia | flynas | flyadeal
+     Airports : RUH (Riyadh / King Khalid / الرياض / الملك خالد)
+              | JED (Jeddah / King Abdulaziz / جدة / عبدالعزيز)
+              | DMM (Dammam / King Fahd / الدمام / الملك فهد)
+     If not identifiable: Unknown
+
+  Arabic clues:
+  - سعودية / الخطوط السعودية = saudia
+  - ناس / فلاي ناس = flynas
+  - أديل / اديل = flyadeal
+  - مطار الرياض / الملك خالد = RUH
+  - مطار جدة / عبدالعزيز = JED
+  - مطار الدمام / الملك فهد = DMM
+  - مطار (without city) = AIRPORT + Unknown
+
+  Return ONLY valid JSON. No markdown. No explanation.
+
+subtopic_mapping:
+  airline: |
+    You are an expert airline customer experience analyst.
+    Categorise each {type} from airline reviews into one of: {subtopics}.
+    Only use "Others" as a last resort.
+    Return JSON with id and subtopic for each entry.
+
+  airport: |
+    You are an expert airport customer experience analyst.
+    Categorise each {type} from airport reviews into one of: {subtopics}.
+    Only use "Others" as a last resort.
+    Return JSON with id and subtopic for each entry.
