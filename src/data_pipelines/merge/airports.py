@@ -33,7 +33,7 @@ FINAL_COLS = ['Review_No', 'sentiment', 'topic', 'pp_mod', 'type',
 if __name__ == '__main__':
     print(f'Loading sentiment output: {PHASE1_PATH}')
     phase1 = pd.read_csv(PHASE1_PATH)
-    phase1['review_id'] = phase1['review_id'].astype(int)
+    phase1['review_id'] = phase1['review_id'].astype(str)
 
     pp  = explode_column(phase1, 'review_id', 'sentiment', 'topic', 'pain_points',        'Pain Point')
     mod = explode_column(phase1, 'review_id', 'sentiment', 'topic', 'moments_of_delight', 'Moment of Delight')
@@ -55,10 +55,11 @@ if __name__ == '__main__':
     )
     raw['Translated Review'] = raw['text']
     raw = raw.rename(columns={'lang': 'Original Review Language', 'score_x': 'rating', 'origin': 'data_source'})
+    raw['Review_No'] = raw['Review_No'].astype(str)
     raw = raw[['Review_No', 'Airport', 'date', 'rating', 'data_source',
                'Original Review Language', 'Original Review', 'Translated Review']]
 
-    combined['Review_No'] = combined['Review_No'].astype(int)
+    combined['Review_No'] = combined['Review_No'].astype(str)
     final = combined.merge(raw, on='Review_No', how='left')
     final = final[FINAL_COLS]
 
