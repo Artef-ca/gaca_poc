@@ -6,7 +6,7 @@ Update BATCH_DATE before each new run.
 from datetime import date
 
 # ── Run config ────────────────────────────────────────────────────────────────
-BATCH_DATE  = '2026-04-13'
+BATCH_DATE  = '2026-04-16'
 MODEL_NAME  = 'gemini-2.5-flash'
 
 # ── Paths (relative to project root) ─────────────────────────────────────────

@@ -29,6 +29,12 @@ def _load_topics(taxonomy_path: str, entity_type: str) -> str:
     return ', '.join(topics)
 
 
+def get_valid_topics(taxonomy_path: str, entity_type: str) -> frozenset:
+    """Return the set of valid topic names for the given entity type, including 'Others'."""
+    taxonomy = pd.read_csv(taxonomy_path)
+    return frozenset(taxonomy[taxonomy['type'] == entity_type]['topic'].unique()) | {'Others'}
+
+
 def get_airline_review_prompt(taxonomy_path: str) -> str:
     return _inject(_PROMPTS['airline']['review_extraction'], topics=_load_topics(taxonomy_path, 'AIRLINE'))
 

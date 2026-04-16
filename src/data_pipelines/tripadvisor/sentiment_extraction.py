@@ -22,12 +22,12 @@ log = logging.getLogger(__name__)
 from src.config import TRIPADVISOR_PATH, TAXONOMY_PATH, BATCH_DATE
 from src.core.llm import resolve_schema, call_and_parse, make_generation_config, make_model
 from src.models.sentiment import ReviewsBatch
-from src.prompts.loader import get_airline_review_prompt
+from src.prompts.loader import get_airline_review_prompt, get_valid_topics
 
 OUTPUT_DIR = f'airlines_sentiment/intermediate_sentiments/{BATCH_DATE}_batches'
 
 
-def _process_batches(reviews_list, system_prompt, output_dir, model, batch_size=50):
+def _process_batches(reviews_list, system_prompt, output_dir, model, batch_size=50, valid_topics=None):
     os.makedirs(output_dir, exist_ok=True)
     schema = resolve_schema(ReviewsBatch.model_json_schema())
     cfg = make_generation_config(response_schema=schema)
@@ -56,10 +56,11 @@ def _process_batches(reviews_list, system_prompt, output_dir, model, batch_size=
         rows = []
         for rev in result.reviews:
             for t in rev.topics:
+                topic = t.topic if (valid_topics is None or t.topic in valid_topics) else 'Others'
                 rows.append({
                     'review_id'          : rev.id,
                     'sentiment'          : rev.sentiment,
-                    'topic'              : t.topic,
+                    'topic'              : topic,
                     'pain_points'        : ', '.join(t.pain_points) or None,
                     'moments_of_delight' : ', '.join(t.moments_of_delight) or None,
                 })
@@ -89,5 +90,6 @@ if __name__ == '__main__':
         {'content': f"Review_id: {row['review_unique_id']}\nReview: {row['translated_text']}"}
         for _, row in reviews.iterrows()
     ]
-    _process_batches(reviews_list, system_prompt, OUTPUT_DIR, model)
+    _process_batches(reviews_list, system_prompt, OUTPUT_DIR, model,
+                     valid_topics=get_valid_topics(TAXONOMY_PATH, 'AIRLINE'))
     print('Airline sentiment extraction complete.')

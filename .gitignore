@@ -43,3 +43,7 @@ test_output/
 run_test_*.py
 test_all_sources.py
 test_pipeline.py
+
+# One-off maintenance scripts
+cleanup_x_data.py
+append_new_x.py
